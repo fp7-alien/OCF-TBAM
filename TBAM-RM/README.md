@@ -35,7 +35,7 @@ The Resource Manager leverages on the TBAM Scheduling Plugin to record the alloc
 In addition, the API that the Scheduling Plugin exposes to access its internal database has been extended with the following:
 
 - flag allocate/provision. Indicates if the slice in the database has been already provisioned or just allocated. Allocated slices expire after a pre-determined time (set by default to 48 hours). 
-- expire_time. An allocation is removed after the reaching of the expiration time. The scheduling plugin inserts the value as *utcnow() + max_reservation_duration* if not provided in the provision call. The *max_reservation_duration* is a parameter configurable during the initialization of the scheduling plugin.
+- expire_time. An allocation is removed after the expiration time is reached. The scheduling plugin inserts the value as *utcnow() + max_reservation_duration* if not provided in the provision call. The *max_reservation_duration* is a parameter configurable during the initialization of the scheduling plugin.
 - flag started/not started. Indicates whether a slice is currently started or not.
 
 Other parameters, that do not require any modification in the existing API, exploit the *resource_spec* of the scheduling plugin:
