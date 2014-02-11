@@ -1,0 +1,9 @@
+{
+  "name" : "Test resource manager",
+  "author" : "io",
+  "author-email" : "io",
+  "version" : 1,
+  "implements" : ["islandresourcemanager", "islandrmexceptions"],
+  "loads-after" : ["config", "worker"],
+  "requires" : []
+}
