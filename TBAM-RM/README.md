@@ -48,12 +48,13 @@ Other parameters, that do not require any modification in the existing API, expl
 ### Southbound interface: TBAM Resource Manager <--> OFGW TBAM Agent
 The TBAM Agent is an internal OFGW sub-module that is invoked by the TBAM RM to provision/reset the resources. In addition the TBAM Agent permits to retrieve the information of the network devices and to access the forwarding plane through some pre-defined functionalities exposed by the Management plane. The communication between the TBAM Resource Manager and TBAM Agent is achieved through a SecureXMLRPC protocol.
 
-TBAM Agent exposed methods   | Function
+TBAM Agent exposed methods   | Functionality
 ------------- | -------------
-getSws | collects DPID of the switches through MGMT
-getLinks | collects network links between switches through MGMT
-configure or clear the OFGW for the experiment | - set/remUserAuth(ssh_pub_client_cert): user access guarantee through cert <br> - set/remTCPProxy (controller): configure the TCPProxy with the OF controller <br> - set/remOvs(VLANs): configure the VLAN mapping between Alien and OFELIA
-
+getSws | returns the DPIDs of the switches retrieved through MGMT interface
+getLinks | returns the links between switches retrieved through MGMT interface
+set/remUserAuth(ssh_pub_client_cert) |  manages the user's credentials needed by the user to access the OFGW
+set/remTCPProxy (controller) |  configures the TCP Proxy daemon with the user's controllers coordinates
+set/remOvs(VLANs) | configures the VLAN mapping between Alien and OFELIA forwarding planes
 
 
 ##INSTALLATION
