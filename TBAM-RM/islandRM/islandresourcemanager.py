@@ -112,7 +112,7 @@ class islandResourceManager(object):
         
         return reserve
     
-    def provision_aggregate(self, client_cert, slice_id, owner_uuid, owner_mail, start_time, end_time, VLANs, controller): 
+    def approve_aggregate(self, client_cert, slice_id, owner_uuid, owner_mail, start_time, end_time, VLANs, controller): 
         search = self.aggregate_schedule.find(slice_id=slice_id)
         if(len(search) > 1):
             raise islandex.IslandRMMoreSliceWithSameID(slice_id)
