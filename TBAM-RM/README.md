@@ -34,7 +34,7 @@ delete | *delete_aggregate(slice_id)*: releases an allocated or approved slice i
 The Resource Manager leverages on the TBAM Scheduling Plugin to record the allocated/provisioned time-slots and to avoid conflicts among different experiments. 
 In addition, the API that the Scheduling Plugin exposes to access its internal database has been extended with the following:
 
-- flag allocate/approved. Indicates if the slice in the database has been already provisioned or just allocated. Allocated slices expire after a pre-determined time (set by default to 48 hours). 
+- flag allocate/approved. Indicates if the slice in the database has been already approved or just allocated. Allocated slices expire after a pre-determined time (set by default to 48 hours). 
 - expire_time. An allocation is removed after the expiration time is reached. The scheduling plugin inserts the value as *utcnow() + max_reservation_duration* if not provided in the provision call. The *max_reservation_duration* is a parameter configurable during the initialization of the scheduling plugin.
 - flag started/not started. Indicates whether an approved slice is currently started or not.
 
