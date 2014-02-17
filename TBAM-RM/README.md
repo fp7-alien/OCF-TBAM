@@ -18,7 +18,7 @@ Both methods exploit the [AMsoil worker](https://github.com/motine/AMsoil/wiki/W
 
 The RM operations are divided into two stages. First, the temporary booking of an ALIEN aggregate for a given time-slot is achieved through an *allocate* call. Nothing is configured on the ALIEN devices, the RM just updates the database of the Scheduling Plugin. In a second stage, the booked time-slot is approved through a *provision* call. Also in this stage the only operation performed by the RM is updating the database entry status from "allocated" to "approved" and adding the new parameters received. The *provision* is not approved if the time-slot is different from the one provided during the allocation.
 The real provisioning of the slice is performed automatically by the RM by sending the configuration parameters to the OpenFlow Gateway (OFGW) at the beginning of the time-slot.
-The *provision* call is also used to update already approved slices (e.g. to change the controller information or to extend/reduce the time-slot). This is achieved through a parameter that identifies the slice (slice_id). 
+The *provision* call is also used to update already approved or provisioned slices (e.g. to change the controller information or to extend/reduce the time-slot). This is achieved through a parameter that identifies the slice (slice_id). 
 
 The following table lists the APIs exposed by the Resource Manager on the northbound interface. The table is organized as follows: on the leftmost column are listed the GENI v3 API methods that the TBAM delegate exposes to the TB Plugin for Expedient. On the rightmost column, the corresponding TBAM RM methods are provided.
 
