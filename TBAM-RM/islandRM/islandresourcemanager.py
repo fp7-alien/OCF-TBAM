@@ -37,13 +37,12 @@ scheduleex = pm.getService('scheduleexceptions')
 
 class islandResourceManager(object):
     
-    #86400 sec = 24 hours: default expiry time is not given
     #604800 sec = 7 days: default delta between start_time and stop_time is stop_time is not given.
     #see scheduling plugin for more information
     aggregate_schedule = schedule('aggregate', 604800)
     
     
-    AGGREGATE_CHECK_INTERVAL = 30  # sec = 1 hour
+    AGGREGATE_CHECK_INTERVAL = 36000  # sec = 1 hour
    
     def __init__(self):
         super(islandResourceManager, self).__init__()
