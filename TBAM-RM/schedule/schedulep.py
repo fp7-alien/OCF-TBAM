@@ -65,23 +65,20 @@ class Schedule(object):
 
     
     @serviceinterface
-    def __init__(self, schedule_subject, default_duration, reservation_timeout):
+    def __init__(self, schedule_subject, default_duration):
         """
         There is one schedule for each subject (resource classification/type). 
         {schedule_subject} This paramenter limits the scope of this class to the given subject (see above).
         {default_duration} (number in seconds) If no {end_time} is given in subsequent methods, this value will be added to the {start_time} to get the end of the reservation.
-        {reservation_timeout} (number in seconds) Maximum duration an aggregate can be held allocated (not provisioned).
 
         """
         self.schedule_subject = schedule_subject
         self.default_duration = default_duration
         
-        #Added
-        self.reservation_timeout = reservation_timeout
 
     @serviceinterface
-    def reserve(self, resource_id, resource_spec=None, slice_id=None, user_id=None, start_time=None, end_time=None, 
-                allocate=None, started=None, expiry_time=None):
+    def reserve(self, resource_id, allocate, resource_spec=None, slice_id=None, user_id=None, start_time=None, 
+                end_time=None, started=None):
         """
         Creates a reservation.
         Raises an ScheduleOverbookingError if there is already an entry for the given subject, resource_id and time (see constraints above).
@@ -96,21 +93,10 @@ class Schedule(object):
             
         #Added
         """I do not accept reservation with allocate=None! I must know if it is an allocate or a provision.
-        The expiry_time is important only when it is allocate. If it is not defined, the default value will be consider.
         """
         if allocate is None:
             raise sex.ScheduleNoAllocate(slice_id)
-        if not expiry_time is None:
-            if allocate == True:
-                if expiry_time > datetime.utcnow():
-                    raise sex.ScheduleExpired(slice_id)
-                else: expiry_time = expiry_time
-            else:
-                expiry_time = None
-        else:
-            expiry_time = datetime.utcnow() + timedelta(0,self.reservation_timeout)
-            
-
+        
         if len(self.find(resource_id=resource_id, start_time=start_time, end_time=end_time)) > 0:
             raise sex.ScheduleOverbookingError(self.schedule_subject, resource_id, start_time, end_time)
         
@@ -119,8 +105,7 @@ class Schedule(object):
             resource_spec=resource_spec,
             start_time=start_time, end_time=end_time,
             slice_id=slice_id, user_id=user_id, 
-            allocate = allocate, started = started,
-            expiry_time = expiry_time)
+            allocate = allocate, started = started)
         db_session.add(new_record)
         db_session.commit()
         db_session.expunge_all()
@@ -128,7 +113,7 @@ class Schedule(object):
     
     @serviceinterface
     def find(self, reservation_id=None, resource_id=None, slice_id=None, user_id=None, start_time=None, end_time=None,
-             allocate=None, started=None, expiry_time=None):
+             allocate=None, started=None):
         """
         Returns a list of reservation value objects (see class description).
         If all parameters a None, all reservations for this schedule_subject will be returned.
@@ -136,8 +121,7 @@ class Schedule(object):
         If multiple params are given the result will be reduced (conditions will be AND-ed).
         If the times are given, all records which touch the given period will be returned.
         If {start_time} is given, but {end_time} is omitted, all records which span start_time will be returned.
-        #Added:
-        If {expiry_time} is given, all records that have expired (the expiry_time of the records is in the past respect to the time given)
+        
         
         Limitations:
         - This method can not be used to filter records with NULL fields. E.g. it is not possible to filter all records to the ones which have set user_id to NULL.
@@ -163,9 +147,6 @@ class Schedule(object):
             q = q.filter_by(allocate = allocate)
         if not started is None:
             q = q.filter_by(started = started)
-
-        if not expiry_time is None:
-            q = q.filter(ReservationRecord.expiry_time < expiry_time)
         
         
         records = q.all()
@@ -174,7 +155,7 @@ class Schedule(object):
         return result
 
     def update(self, reservation_id, resource_id=None, resource_spec=None, slice_id=None, user_id=None, start_time=None, 
-               end_time=None, allocate=None, started=None, expiry_time=None):
+               end_time=None, allocate=None, started=None):
         """
         Finds the reservation by its {reservation_id} and updates the fields by the given parameters.
         If a parameter is None, the field will be left unchanged.
@@ -204,8 +185,6 @@ class Schedule(object):
             reservation.allocate = allocate
         if not started is None:
             reservation.started = started
-        if not expiry_time is None:
-            reservation.expiry_time = expiry_time
             
         db_session.commit()
         db_session.expunge_all()
@@ -277,7 +256,6 @@ class ReservationRecord(DB_Base):
     #Added:
     allocate = Column(Boolean)
     started = Column(Boolean)
-    expiry_time = Column(DateTime)
     
     resource_spec = Column(PickleType())
 

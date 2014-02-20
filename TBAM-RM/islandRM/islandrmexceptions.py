@@ -8,20 +8,20 @@ class IslandRMException(CoreException):
         return "IslandResourceManager: %s" % (self._desc,)
 
 class IslandRMAlreadyReserved(IslandRMException):
-    def __init__(self, start_time, stop_time):
-        super(IslandRMAlreadyReserved, self).__init__("The island is already reserved from %s to %s" % (str(start_time)), str(stop_time))
+    def __init__(self, start_time, end_time):
+        super(IslandRMAlreadyReserved, self).__init__("The island is already reserved from %s to %s" % (str(start_time), str(end_time)))
 
 class IslandRMNotAllocated(IslandRMException):
     def __init__(self, slice_id):
-        super(IslandRMNotAllocated, self).__init__("The slice %s has not previously allocated or allocated with different parameters" % (str(slice_id)))
+        super(IslandRMNotAllocated, self).__init__("The slice %s has not previously allocated or approved" % (str(slice_id)))
         
 class IslandRMNotUnivocal(IslandRMException):
     def __init__(self, slice_id):
-        super(IslandRMNotUnivocal, self).__init__("The slice name %s is already used" % (str(slice_id)))
+        super(IslandRMNotUnivocal, self).__init__("The slice_urn %s is already used and it is not yet provisioned" % (str(slice_id)))
         
 class IslandRMMoreSliceWithSameID(IslandRMException):
     def __init__(self, slice_id):
-        super(IslandRMMoreSliceWithSameID, self).__init__("More slice with same id %s" % (str(slice_id)))
+        super(IslandRMMoreSliceWithSameID, self).__init__("More slice with same urn %s" % (str(slice_id)))
                 
 class IslandRMRPCError(IslandRMException):
     def __init__(self, err):

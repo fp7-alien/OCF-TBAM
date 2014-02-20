@@ -1,5 +1,5 @@
 from datetime import datetime, timedelta
-from pprint import pprint
+import time
 import xmlrpclib
 import os
 
@@ -11,7 +11,6 @@ import amsoil.core.pluginmanager as pm
 import islandrmexceptions as islandex
 
 import pickle
-
 
 
 import httplib
@@ -41,18 +40,15 @@ class islandResourceManager(object):
     #86400 sec = 24 hours: default expiry time is not given
     #604800 sec = 7 days: default delta between start_time and stop_time is stop_time is not given.
     #see scheduling plugin for more information
-    aggregate_schedule = schedule('aggregate', 604800, 86400)
+    aggregate_schedule = schedule('aggregate', 604800)
     
     
-    AGGREGATE_CHECK_INTERVAL = 3600  # sec = 1 hour
-    ALLOCATE_CHECK_INTERVAL = 3600 # sec = 1 hour
+    AGGREGATE_CHECK_INTERVAL = 30  # sec = 1 hour
    
     def __init__(self):
         super(islandResourceManager, self).__init__()
         #Check the starting or expiration of the experiment 
         worker.addAsReccurring("islandresourcemanager", "check_provision", None, self.AGGREGATE_CHECK_INTERVAL)
-        #Check for the expiration of a allocate (not provisioned).
-        worker.addAsReccurring("islandresourcemanager", "check_allocate", None, self.ALLOCATE_CHECK_INTERVAL)
         
         
     def getSws(self):
@@ -66,7 +62,9 @@ class islandResourceManager(object):
             except Exception, err:
                 raise islandex.IslandRMRPCError(err)
         else:
-            sws = ["00:00:00:00:00:00:00", "00:00:00:00:00:00:01"]
+            sws = []
+            sws.append({"dipd" : "00:00:00:00:00:00:00"})
+            sws.append({"dipd" : "00:00:00:00:00:00:01"})
         return sws  
 
     def getLinks(self):
@@ -81,8 +79,9 @@ class islandResourceManager(object):
                 raise islandex.IslandRMRPCError(err)
         else:
             links = []
-            links.append({"dpidSrc" : "00:00:00:00:00:00:00", "portSrc" : 5, "dpidDst":"00:00:00:00:00:00:01", "portDst": 1})
-            links.append({"dpidSrc" : "00:00:00:00:00:00:00", "portSrc" : 6, "dpidDst":"00:00:00:00:00:00:01", "portDst": 7})
+            #links.append("00:00:00:00:00:00:00")
+            links.append({"dpidSrc" : "00:00:00:00:00:00:00", "portSrc" : "5", "dpidDst" : "00:00:00:00:00:00:01", "portDst": "1"})
+            links.append({"dpidSrc" : "00:00:00:00:00:00:00", "portSrc" : "6", "dpidDst" : "00:00:00:00:00:00:01", "portDst": "7"})
         return links
 
     def getAvailability(self):
@@ -91,7 +90,9 @@ class islandResourceManager(object):
         reservedTimeSlot = []
         
         for entry in scheduleTimeSlot:
-            reservedTimeSlot.append(TimeSlot(slice_id=entry.slice_id, start_time=entry.start_time, end_time=entry.end_time))   
+            reservedTimeSlot.append({"slice_id" : entry.slice_id, "start_time" : entry.start_time.strftime('%d/%m/%Y %H:%M:%S'), 
+                                     "end_time" : entry.end_time.strftime('%d/%m/%Y %H:%M:%S')})  
+
         
         return reservedTimeSlot
     
@@ -103,67 +104,81 @@ class islandResourceManager(object):
             return True
     
     
-    def reserve_aggregate(self, slice_id, owner_uuid, owner_mail, start_time, end_time, expiry_time): 
+    def reserve_aggregate(self, slice_id, owner_uuid, owner_mail, start_time, end_time, VLANs, controller, client_cert): 
         search = self.aggregate_schedule.find(slice_id=slice_id)
-        if(search):
+        start_time = datetime.strptime(start_time, '%d/%m/%Y %H:%M:%S')
+        end_time = datetime.strptime(end_time, '%d/%m/%Y %H:%M:%S')
+        #new allocate: insert in the database
+        if(not search):
+            print("new allocate")
+            try:
+                reserve = self.aggregate_schedule.reserve(resource_id=slice_id, slice_id=slice_id, user_id=None,
+                                                      start_time=start_time, end_time=end_time, allocate=True, started=False,
+                                                      resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert})
+            except scheduleex.ScheduleOverbookingError as e:
+                    raise islandex.IslandRMAlreadyReserved(start_time = start_time, end_time = end_time)
+            reserve.start_time = reserve.start_time.strftime('%d/%m/%Y %H:%M:%S')
+            reserve.end_time = reserve.end_time.strftime('%d/%m/%Y %H:%M:%S')
+            
+            return reserve
+        #if there are more approved entries, raise exception. (Should be impossible)
+        elif(len(search) > 1):
+            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
+        
+        #if an allocate exists raise exception: 
+        elif(search[0].allocate):
             raise islandex.IslandRMNotUnivocal(slice_id)
         
-        reserve = self.aggregate_schedule.reserve(resource_id="CN2", resource_spec=None, slice_id=slice_id, user_id=owner_uuid, start_time=start_time, end_time=end_time, allocate=True, started=False, expiry_time=expiry_time)
-        
-        return reserve
-    
-    def approve_aggregate(self, client_cert, slice_id, owner_uuid, owner_mail, start_time, end_time, VLANs, controller): 
-        search = self.aggregate_schedule.find(slice_id=slice_id)
-        if(len(search) > 1):
-            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
-        if(not search):
-            raise islandex.IslandRMNotAllocated(slice_id)
-        for entry in search:
-            if (not entry.get("allocate")):
-            # Update of a provision
+        #this is an update of an approved entry
+        else:
+            # Update of a approved entry
                 # Checks if timeslot is equal; If they are not equal, it controls that is available.
-                if((not entry.start_time == start_time) or (not entry.end_time == end_time)):
+                if((not search[0].start_time == start_time) or (not search[0].end_time == end_time)):
                         
                     if(not self.checkAvailability(start_time, end_time)):
                         raise islandex.IslandRMAlreadyReserved(start_time, end_time)
                 
-                if(not entry.get("started")):
+                if(not search[0].started):
+                    print("not started")
                     # If the experiment is not started, it updates only the db.
-                    update = self.aggregate_schedule.update(entry.reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, start_time=start_time, end_time=end_time, allocate=False, started=False)
+                    update = self.aggregate_schedule.update(search[0].reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, 
+                                                            start_time=start_time, end_time=end_time)
                     
                 else:
+                    print("started")
                     # If the experiment is started, I need to propagate the update through the TBAM Agent if there is an
                     # update of VLANs or Contoller or client_pub_cert
                     
                     #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
                     #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
-                    client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+                    if(CONN_WITH_AGENT):
+                        client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
 
-                    if(not entry.resource_spec.get("VLANs") == VLANs):
+                    if(not search[0].resource_spec.get("VLANs") == VLANs):
                         if(CONN_WITH_AGENT):                    
                             try:
-                                if not entry.resource_spec.get("VLANs") is None:
-                                    client.remOvS(entry.resource_spec.get("VLANs"))
+                                if not search[0].resource_spec.get("VLANs") is None:
+                                    client.remOvS(search[0].resource_spec.get("VLANs"))
                                 if not VLANs is None:
                                     client.setOvS(VLANs)
                             except Exception, err:
                                 raise islandex.IslandRMRPCError(err)
                         
-                    if(not entry.resource_spec.get("controller") == controller):
+                    if(not search[0].resource_spec.get("controller") == controller):
                         if(CONN_WITH_AGENT):
                             try:
-                                if not entry.resource_spec.get("controller") is None: 
-                                    client.remTCPProxy(entry.resource_spec.get("controller"))
+                                if not search[0].resource_spec.get("controller") is None: 
+                                    client.remTCPProxy(search[0].resource_spec.get("controller"))
                                 if not controller is None:
                                     client.setTCPProxy(controller)
                             except Exception, err:
                                 raise islandex.IslandRMRPCError(err)
                         
-                    if(not entry.resource_spec.get("client_cert") == client_cert):
+                    if(not search[0].resource_spec.get("client_cert") == client_cert):
                         if(CONN_WITH_AGENT):
                             try:
-                                if not entry.resource_spec.get("client_cert") is None:
-                                    client.remUserAuth(entry.resource_spec.get("client_cert"))
+                                if not search[0].resource_spec.get("client_cert") is None:
+                                    client.remUserAuth(search[0].resource_spec.get("client_cert"))
                                 if not client_cert is None:
                                     client.setUserAuth(client_cert)
                             except Exception, err:
@@ -171,19 +186,28 @@ class islandResourceManager(object):
                         
                         
                         
-                    update = self.aggregate_schedule.update(entry.reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, start_time=start_time, end_time=end_time, allocate=False, started=False)
+                    update = self.aggregate_schedule.update(search[0].reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, 
+                                                            start_time=start_time, end_time=end_time)
+                update.start_time = update.start_time.strftime('%d/%m/%Y %H:%M:%S')
+                update.end_time = update.end_time.strftime('%d/%m/%Y %H:%M:%S')
+                return update        
+        
+    
+    def approve_aggregate(self, slice_id): 
+        search = self.aggregate_schedule.find(slice_id=slice_id)
+        if(len(search) > 1):
+            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
+        if(not search):
+            raise islandex.IslandRMNotAllocated(slice_id)
+        
+        # Previous allocation found                    
+        # It checks that there is not difference between allocate and provision: the 
+        # time slot and the owner _uuid must be the same. 
+        approve = self.aggregate_schedule.update(search[0].reservation_id, allocate=False, started=False)
                     
-                return update
-            else:
-                # Previous allocation found            
-                # It checks that there is not difference between allocate and provision: the 
-                # time slot and the owner _uuid must be the same. 
-                if(entry.start_time == start_time and entry.end_time == end_time and entry.user_id == owner_uuid):
-                    
-                    reserve = self.aggregate_schedule.update(entry.reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, start_time=start_time, end_time=end_time, allocate=False, started=False)
-                    
-                else: raise islandex.IslandRMNotAllocated(slice_id)
-            return reserve
+        approve.start_time = approve.start_time.strftime('%d/%m/%Y %H:%M:%S')
+        approve.end_time = approve.end_time.strftime('%d/%m/%Y %H:%M:%S')
+        return approve
     
     def delete_aggregate(self, slice_id):
 
@@ -208,9 +232,11 @@ class islandResourceManager(object):
                         client.remUserAuth(entry.resource_spec.get("client_cert"))
                 except Exception, err:
                     raise islandex.IslandRMRPCError(err) 
-            self.aggregate_schedule.cancel(entry.reservation_id)
+            removed = self.aggregate_schedule.cancel(entry.reservation_id)
         
-        return entry
+        removed.start_time = removed.start_time.strftime('%d/%m/%Y %H:%M:%S')
+        removed.end_time = removed.end_time.strftime('%d/%m/%Y %H:%M:%S')
+        return removed
     
     def status_island(self, slice_id):
         
@@ -219,11 +245,9 @@ class islandResourceManager(object):
             raise islandex.IslandRMMoreSliceWithSameID(slice_id)
         if(not search):
             raise islandex.IslandRMNotAllocated(slice_id)
-        
-        for entry in search:
-            return entry
-        return None
-    
+
+        return search[0]
+
     @worker.outsideprocess
     def check_provision(self, params):
         print("check provision")
@@ -269,26 +293,7 @@ class islandResourceManager(object):
             self.aggregate_schedule.update(entry.reservation_id, started=True)
         
         return
- 
-    @worker.outsideprocess
-    def check_allocate(self, params):
-        # It checks for the expiration of a allocate (not provisioned)
-        list = self.aggregate_schedule.find(allocate=True, expiry_time=datetime.utcnow())
-        for entry in list:
-            self.aggregate_schedule.cancel(entry.reservation_id)
-            print("expire time for allocate %s", entry.slice_id)
-        return
     
-
-
-class TimeSlot(object):
-    slice_id = "";
-    start_time = 0;
-    end_time = 0;
-    def __init__(self, slice_id, start_time, end_time):
-        self.start_time = start_time
-        self.end_time = end_time
-        self.slice_id = slice_id
     
 class SafeTransportWithCert(xmlrpclib.SafeTransport):
     def __init__(self, use_datetime=0, keyfile=None, certfile=None,
