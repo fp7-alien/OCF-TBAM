@@ -1,9 +1,0 @@
-{
-  "name" : "Test delegate for GENI AM API v3",
-  "author" : "Io",
-  "author-email" : "me.ciao.it",
-  "version" : 1,
-  "implements" : [],
-  "loads-after" : ["geniv3handler", "geniv3delegatebase", "geniv3exceptions", "islandresourcemanager","config"],
-  "requires" : []
-}
