@@ -84,12 +84,12 @@ class islandResourceManager(object):
         return links
 
     def getAvailability(self):
-        #it returns only the timeslot and the slice_id. It is possible to return also other parameters
+        #it returns only the timeslot and the slice_urn. It is possible to return also other parameters
         scheduleTimeSlot = self.aggregate_schedule.find()
         reservedTimeSlot = []
         
         for entry in scheduleTimeSlot:
-            reservedTimeSlot.append({"slice_id" : entry.slice_id, "start_time" : entry.start_time.strftime('%d/%m/%Y %H:%M:%S'), 
+            reservedTimeSlot.append({"slice_urn" : entry.slice_urn, "start_time" : entry.start_time.strftime('%d/%m/%Y %H:%M:%S'), 
                                      "end_time" : entry.end_time.strftime('%d/%m/%Y %H:%M:%S')})  
 
         
@@ -103,15 +103,15 @@ class islandResourceManager(object):
             return True
     
     
-    def reserve_aggregate(self, slice_id, owner_uuid, owner_mail, start_time, end_time, VLANs, controller, client_cert): 
-        search = self.aggregate_schedule.find(slice_id=slice_id)
+    def reserve_aggregate(self, slice_urn, owner_uuid, owner_mail, start_time, end_time, VLANs, controller, client_cert): 
+        search = self.aggregate_schedule.find(slice_urn=slice_urn)
         start_time = datetime.strptime(start_time, '%d/%m/%Y %H:%M:%S')
         end_time = datetime.strptime(end_time, '%d/%m/%Y %H:%M:%S')
         #new allocate: insert in the database
         if(not search):
             print("new allocate")
             try:
-                reserve = self.aggregate_schedule.reserve(resource_id=slice_id, slice_id=slice_id, user_id=None,
+                reserve = self.aggregate_schedule.reserve(resource_id="Alien", slice_urn=slice_urn, user_id=str(owner_uuid),
                                                       start_time=start_time, end_time=end_time, allocate=True, started=False,
                                                       resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert})
             except scheduleex.ScheduleOverbookingError as e:
@@ -122,11 +122,11 @@ class islandResourceManager(object):
             return reserve
         #if there are more approved entries, raise exception. (Should be impossible)
         elif(len(search) > 1):
-            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
+            raise islandex.IslandRMMoreSliceWithSameID(slice_urn)
         
         #if an allocate exists raise exception: 
         elif(search[0].allocate):
-            raise islandex.IslandRMNotUnivocal(slice_id)
+            raise islandex.IslandRMNotUnivocal(slice_urn)
         
         #this is an update of an approved entry
         else:
@@ -192,12 +192,12 @@ class islandResourceManager(object):
                 return update        
         
     
-    def approve_aggregate(self, slice_id): 
-        search = self.aggregate_schedule.find(slice_id=slice_id)
+    def approve_aggregate(self, slice_urn): 
+        search = self.aggregate_schedule.find(slice_urn=slice_urn)
         if(len(search) > 1):
-            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
+            raise islandex.IslandRMMoreSliceWithSameID(slice_urn)
         if(not search):
-            raise islandex.IslandRMNotAllocated(slice_id)
+            raise islandex.IslandRMNotAllocated(slice_urn)
         
         # Previous allocation found                    
         # It checks that there is not difference between allocate and provision: the 
@@ -208,13 +208,13 @@ class islandResourceManager(object):
         approve.end_time = approve.end_time.strftime('%d/%m/%Y %H:%M:%S')
         return approve
     
-    def delete_aggregate(self, slice_id):
+    def delete_aggregate(self, slice_urn):
 
-        search = self.aggregate_schedule.find(slice_id=slice_id)
+        search = self.aggregate_schedule.find(slice_urn=slice_urn)
         if(len(search) > 1):
-            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
+            raise islandex.IslandRMMoreSliceWithSameID(slice_urn)
         if(not search):
-            raise islandex.IslandRMNotAllocated(slice_id)
+            raise islandex.IslandRMNotAllocated(slice_urn)
         
         if(CONN_WITH_AGENT):
             client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
@@ -237,14 +237,16 @@ class islandResourceManager(object):
         removed.end_time = removed.end_time.strftime('%d/%m/%Y %H:%M:%S')
         return removed
     
-    def status_island(self, slice_id):
+    def status_island(self, slice_urn):
         
-        search = self.aggregate_schedule.find(slice_id=slice_id)
+        search = self.aggregate_schedule.find(slice_urn=slice_urn)
         if(len(search) > 1):
-            raise islandex.IslandRMMoreSliceWithSameID(slice_id)
+            raise islandex.IslandRMMoreSliceWithSameID(slice_urn)
         if(not search):
-            raise islandex.IslandRMNotAllocated(slice_id)
-
+            raise islandex.IslandRMNotAllocated(slice_urn)
+        
+        search.start_time = search.start_time.strftime('%d/%m/%Y %H:%M:%S')
+        search.end_time = search.end_time.strftime('%d/%m/%Y %H:%M:%S')
         return search[0]
 
     @worker.outsideprocess
@@ -259,7 +261,7 @@ class islandResourceManager(object):
             
         for entry in list:
             if(entry.end_time < datetime.utcnow()):
-                print("stopping %s", entry.slice_id)
+                print("stopping %s", entry.slice_urn)
                 
                 if(CONN_WITH_AGENT):
                     try:
@@ -276,7 +278,7 @@ class islandResourceManager(object):
         
         list = self.aggregate_schedule.find(start_time=datetime.utcnow(), allocate=False, started=False)
         for entry in list:
-            print("starting %s", entry.slice_id)
+            print("starting %s", entry.slice_urn)
                             
             if(CONN_WITH_AGENT):
 

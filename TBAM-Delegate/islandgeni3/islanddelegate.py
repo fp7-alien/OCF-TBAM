@@ -50,24 +50,29 @@ class ISLANDdelegate(GENIv3DelegateBase):
     def list_resources(self, client_cert, credentials, geni_available):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
          
-        print("list_resources")
         client_urn, client_uuid, client_email = self.auth(client_cert, credentials, None, ('listslices',))
+        
         root_node = self.lxml_ad_root()
         E = self.lxml_ad_element_maker('aggregate')
         r = E.resources()
+        try:
         
-        for sw in self._resource_manager.getSws():
-            r.append(E.switch(dpid=sw["dipd"]))
+            for sw in self._resource_manager.getSws():
+                r.append(E.switch(dpid=sw["dipd"]))
         
-        for link in self._resource_manager.getLinks():
-            
-            r.append(E.link(dpidSrc = link["dpidSrc"], portSrc = link["portSrc"], dpidDst = link["dpidDst"], portDst = link["portDst"]))
+            for link in self._resource_manager.getLinks():
+                r.append(E.link(dpidSrc = link["dpidSrc"], portSrc = link["portSrc"], dpidDst = link["dpidDst"], portDst = link["portDst"]))
         
-        for time in self._resource_manager.getAvailability():
-            r.append(E.reservation(slice_urn = time["slice_id"], start_time = time["start_time"], end_time = time["end_time"])) 
+            for time in self._resource_manager.getAvailability():
+                r.append(E.reservation(slice_urn = time["slice_urn"], start_time = time["start_time"], end_time = time["end_time"])) 
         
-        root_node.append(r)    
+        except island_ex.IslandRMRPCError as e:
+            raise geni_ex.GENIv3ServerError("%s" %(str(e)))        
+                
+        root_node.append(r)
+
         print(datetime.utcnow())
+        
         return self.lxml_to_string(root_node)
     
     
@@ -88,7 +93,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
             if not self.lxml_elm_has_request_prefix(elm, 'aggregate'):
                 raise geni_ex.GENIv3BadArgsError("RSpec contains elements/namespaces I dont understand (%s)." % (elm,))
             if (self.lxml_elm_equals_request_tag(elm, 'aggregate', 'slice')):
-                requested_res["slice_id"] = elm.get("slice_urn")
+                requested_res["slice_urn"] = elm.get("slice_urn")
             elif (self.lxml_elm_equals_request_tag(elm, 'aggregate', 'timeslot')):
                 requested_res["start_time"] = elm.get("start_time")
                 requested_res["end_time"] = elm.get("end_time")
@@ -102,11 +107,21 @@ class ISLANDdelegate(GENIv3DelegateBase):
                 requested_res["VLANs"] = d
             else:
                 raise geni_ex.GENIv3BadArgsError("RSpec contains an element I dont understand (%s)." % (elm,))
-            
+        
+        if not requested_res.get("VLANs"):
+            requested_res["VLANs"] = None
+        if not requested_res.get("controller"):
+            requested_res["controller"] = None
+        
+        if not requested_res.get("slice_urn"): 
+            raise geni_ex.GENIv3BadArgsError("RSpec does not contain slice_urn")
+        if not (requested_res.get("start_time")) or not (requested_res.get("end_time")): 
+            raise geni_ex.GENIv3BadArgsError("RSpec does not contain a valid time-slot")
+        
         try:
-            reservation = self._resource_manager.reserve_aggregate(slice_id=slice_urn, owner_uuid=client_uuid, owner_mail=client_email, 
-            start_time= requested_res["start_time"], end_time=requested_res["end_time"], VLANs = requested_res["VLANs"], 
-            controller = requested_res["controller"], client_cert = None)
+            reservation = self._resource_manager.reserve_aggregate(slice_urn=requested_res["slice_urn"], owner_uuid=client_uuid, owner_mail=client_email, 
+            start_time= requested_res["start_time"], end_time=requested_res["end_time"], 
+            VLANs = requested_res["VLANs"], controller = requested_res["controller"], client_cert = None)
         except island_ex.IslandRMAlreadyReserved as e:
             raise geni_ex.GENIv3AlreadyExistsError("%s" %(str(e)))
         except island_ex.IslandRMNotUnivocal as e:
@@ -117,7 +132,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
             raise geni_ex.GENIv3ServerError("%s" %(str(e)))
         
         # assemble sliver list
-        sliver_list = [self._get_sliver_status_hash(reservation.slice_id, True, False, "")]
+        sliver_list = [self._get_sliver_status_hash(reservation.slice_urn, True, False, "")]
         return self.lxml_to_string(self._get_manifest_rspec(reservation)), sliver_list
 
 
@@ -132,7 +147,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
                 client_urn, client_uuid, client_email = self.auth(client_cert, credentials, urn, ('createsliver',)) # authenticate for each given slice
 
                 try:
-                    approved = self._resource_manager.approve_aggregate(slice_id=urn)
+                    approved = self._resource_manager.approve_aggregate(slice_urn=urn)
                 except island_ex.IslandRMMoreSliceWithSameID as e:
                     raise geni_ex.GENIv3GeneralError("%s" %(str(e)))
                 except island_ex.IslandRMNotAllocated as e:
@@ -145,7 +160,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         if (not approved):
             raise geni_ex.GENIv3SearchFailedError("There are no allocation with slice_urn %s; perform allocate first" % (str(urn)))
         
-        sliver_list = [self._get_sliver_status_hash(approved.slice_id, True, True, "")]
+        sliver_list = [self._get_sliver_status_hash(approved.slice_urn, True, True, "")]
         return self.lxml_to_string(self._get_manifest_rspec(approved)), sliver_list
         
 
@@ -166,7 +181,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
                 client_urn, client_uuid, client_email = self.auth(client_cert, credentials, urn, ('createsliver',)) # authenticate for each given slice
 
                 try:
-                    removed = self._resource_manager.delete_aggregate(slice_id=urn)
+                    removed = self._resource_manager.delete_aggregate(slice_urn=urn)
                 except island_ex.IslandRMMoreSliceWithSameID as e:
                     raise geni_ex.GENIv3GeneralError("%s" %(str(e)))
                 except island_ex.IslandRMNotAllocated as e:
@@ -177,7 +192,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         if (not removed):
             raise geni_ex.GENIv3SearchFailedError("There are no allocation with slice_urn %s; perform allocate first" % (str(urn)))
 
-        return [self._get_sliver_status_hash(removed.slice_id, False, False, "")]
+        return [self._get_sliver_status_hash(removed.slice_urn, False, False, "")]
     
     def shutdown(self, slice_urn, client_cert, credentials):
         # client_urn, client_uuid, client_email = self.auth(client_cert, credentials, slice_urn, ('shutdown',))
@@ -191,7 +206,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         """Helper method to create the sliver_status return values of allocate and other calls."""
         result = {'geni_sliver_urn' : urn,
 
-                  'geni_expires'    : None,
+                  'geni_expires'    : datetime.utcnow(),
                   'geni_allocation_status' : self.ALLOCATION_STATE_ALLOCATED}
         if(not include_allocation_status): 
             result['geni_allocation_status'] = self.ALLOCATION_STATE_UNALLOCATED
@@ -202,15 +217,19 @@ class ISLANDdelegate(GENIv3DelegateBase):
         return result
     
     def _get_manifest_rspec(self, aggregate):
+        
         E = self.lxml_manifest_element_maker('aggregate')
         manifest = self.lxml_manifest_root()
         r = E.sliver()
-        r.append(E.slice(slice_urn = aggregate["slice_id"]))
+        r.append(E.slice(slice_urn = aggregate["slice_urn"]))
         r.append(E.timeslot(start_time = aggregate["start_time"], end_time = aggregate["end_time"]))
         
-        for key,value in aggregate.resource_spec.get("VLANs").iteritems():
-            r.append(E.VLAN(OFELIA = key, ALIEN = value))
-        r.append(E.controller(url = aggregate.resource_spec.get("controller")))
+        if aggregate.resource_spec.get("VLANs"):
+            for key,value in aggregate.resource_spec.get("VLANs").iteritems():
+                r.append(E.VLAN(OFELIA = key, ALIEN = value))
+        
+        if aggregate.resource_spec.get("controller"):   
+            r.append(E.controller(url = aggregate.resource_spec.get("controller")))
         manifest.append(r)
         return manifest
 

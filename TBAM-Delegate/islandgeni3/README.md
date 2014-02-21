@@ -10,7 +10,7 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
 - *list_resources(client_cert, credentials, geni_available)*: retrieves the information of the network devices and the reserved time-slots through the Resource Manager. It returns an advertisement RSpec, for e.g.
 
 	```
- 	 <rspec aggregate="http://example.com/dhcp" type="advertisement">  
+ 	 <rspec aggregate="http://example.com/aggregate" type="advertisement">  
     <aggregate:resources xmlns:aggregate="http://example.com/aggregate">    
         <aggregate:switch dpid="00:00:00:00:00:00:00"/>    
         <aggregate:switch dpid="00:00:00:00:00:00:01"/>    

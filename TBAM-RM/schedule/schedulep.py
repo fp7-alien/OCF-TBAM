@@ -45,7 +45,7 @@ class Schedule(object):
     - resource_id str (should be string)
     - resource_spec pickle, optional (should be a dict), can be nested but please do not include objects (except you are sure how pickle serialization works)
     - user_id str, optional
-    - slice_id str, optional (can be empty, slice's name, a uuid, or however you distiguish experiments)
+    - slice_urn str, optional (can be empty, slice's name, a uuid, or however you distiguish experiments)
     - start_time datetime, optional (defaults to `utcnow()`)
     - end_time datetime, optional (init's {default_duration} (number in seconds) If no {end_time} is given in subsequent methods, this value will be added to the {start_time} to get the end of the reservation.)
     
@@ -77,7 +77,7 @@ class Schedule(object):
         
 
     @serviceinterface
-    def reserve(self, resource_id, allocate, resource_spec=None, slice_id=None, user_id=None, start_time=None, 
+    def reserve(self, resource_id, allocate, resource_spec=None, slice_urn=None, user_id=None, start_time=None, 
                 end_time=None, started=None):
         """
         Creates a reservation.
@@ -92,10 +92,10 @@ class Schedule(object):
             end_time =  start_time + timedelta(0, self.default_duration)
             
         #Added
-        """I do not accept reservation with allocate=None! I must know if it is an allocate or a provision.
+        """I do not accept reservation with allocate=None! We must know if it is allocated or approved.
         """
         if allocate is None:
-            raise sex.ScheduleNoAllocate(slice_id)
+            raise sex.ScheduleNoAllocate(slice_urn)
         
         if len(self.find(resource_id=resource_id, start_time=start_time, end_time=end_time)) > 0:
             raise sex.ScheduleOverbookingError(self.schedule_subject, resource_id, start_time, end_time)
@@ -104,7 +104,7 @@ class Schedule(object):
             schedule_subject=self.schedule_subject, resource_id=resource_id,
             resource_spec=resource_spec,
             start_time=start_time, end_time=end_time,
-            slice_id=slice_id, user_id=user_id, 
+            slice_urn=slice_urn, user_id=user_id, 
             allocate = allocate, started = started)
         db_session.add(new_record)
         db_session.commit()
@@ -112,7 +112,7 @@ class Schedule(object):
         return self._convert_record_to_value_object(new_record)
     
     @serviceinterface
-    def find(self, reservation_id=None, resource_id=None, slice_id=None, user_id=None, start_time=None, end_time=None,
+    def find(self, reservation_id=None, resource_id=None, slice_urn=None, user_id=None, start_time=None, end_time=None,
              allocate=None, started=None):
         """
         Returns a list of reservation value objects (see class description).
@@ -132,8 +132,8 @@ class Schedule(object):
             q = q.filter_by(reservation_id=reservation_id)
         if not resource_id is None:
             q = q.filter_by(resource_id=resource_id)
-        if not slice_id is None:
-            q = q.filter_by(slice_id=slice_id)
+        if not slice_urn is None:
+            q = q.filter_by(slice_urn=slice_urn)
         if not user_id is None:
             q = q.filter_by(user_id=user_id)
 
@@ -154,7 +154,7 @@ class Schedule(object):
         db_session.expunge_all()
         return result
 
-    def update(self, reservation_id, resource_id=None, resource_spec=None, slice_id=None, user_id=None, start_time=None, 
+    def update(self, reservation_id, resource_id=None, resource_spec=None, slice_urn=None, user_id=None, start_time=None, 
                end_time=None, allocate=None, started=None):
         """
         Finds the reservation by its {reservation_id} and updates the fields by the given parameters.
@@ -171,8 +171,8 @@ class Schedule(object):
             reservation.reservation_id = reservation_id
         if not resource_spec is None:
             reservation.resource_spec = resource_spec
-        if not slice_id is None:
-            reservation.slice_id = slice_id
+        if not slice_urn is None:
+            reservation.slice_urn = slice_urn
         if not user_id is None:
             reservation.user_id = user_id
         if not start_time is None:
@@ -250,7 +250,7 @@ class ReservationRecord(DB_Base):
     start_time = Column(DateTime)
     end_time = Column(DateTime)
     
-    slice_id = Column(String(255))
+    slice_urn = Column(String(255))
     user_id = Column(String(255))
     
     #Added:
