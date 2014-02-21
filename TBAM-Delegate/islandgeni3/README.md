@@ -11,7 +11,7 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
 
 	```
  	 <rspec aggregate="http://example.com/dhcp" type="advertisement">  
-    <aggregate:resources xmlns:aggregate="http://example.com/dhcp">    
+    <aggregate:resources xmlns:aggregate="http://example.com/aggregate">    
         <aggregate:switch dpid="00:00:00:00:00:00:00"/>    
         <aggregate:switch dpid="00:00:00:00:00:00:01"/>    
         <aggregate:link dpidDst="00:00:00:00:00:00:01" dpidSrc="00:00:00:00:00:00:00" portDst="1" portSrc="5"/> 
@@ -28,7 +28,7 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
 	<rspec type="request"
          xmlns="http://www.geni.net/resources/rspec/3"
          xmlns:xs="http://www.w3.org/2001/XMLSchema-instance"
-         xmlns:aggregate="http://example.com/dhcp"
+         xmlns:aggregate="http://example.com/aggregate"
          xs:schemaLocation="http://www.geni.net/resources/rspec/3 http://www.geni.net/resources/rspec/3/ad.xsd http://example.com/dhcp/req.xsd">
         <aggregate:slice  slice_urn="urn:publicid:IDN+geni:gpo:gcf+slice+testing"/>
         <aggregate:timeslot start_time="20/2/2014 15:45:0" end_time="20/2/2014 15:47:00"/>   
