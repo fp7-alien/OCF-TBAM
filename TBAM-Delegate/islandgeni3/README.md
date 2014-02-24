@@ -46,11 +46,12 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
 	- *SERVERERROR*: the communication between TBAM Resource Manager and TBAM Agent has encountered a problem.
 
 - *provision(urns, client_cert, credentials, best_effort, end_time, geni_users)*: translates the provision to the Resource Manager *approve_aggregate* request. If the request is approved, the Delegate returns the *geni_allocated* status, the *geni_configuring* operational status and the RSpec equal the one of the *allocate* method. In case of errors the method will raise:
-	- *BADARGS, ERROR*: indicates a malformed RSpec.
+	- *BADARGS*: indicates a malformed RSpec.
+	- *ERROR*: the database contains at least two entries with the same *slice_urn*. This error should never happen, because the Resource Manager is in-charge of controlling the uniqueness of the *slice_urn*.
 	- *SEARCHFAILED*: a previous allocation having the same *slice_urn* is not found.  
 	- *ALREADYEXISTS*: another allocation or approval entry exists with same *slice_urn*
 	
-- *delete(self, urns, client_cert, credentials, best_effort)*: translates the *delete* from the Resource Manager *delete_aggregate*. It returns a *geni_unallocated* status or it throws:
+- *delete(self, urns, client_cert, credentials, best_effort)*: translates the *delete* to the Resource Manager *delete_aggregate*. It returns a *geni_unallocated* status or it throws:
 	- *BADARGS, ERROR*, *ALREADYEXISTS*: equals to the *provision* errors.
 	- *SEARCHFAILED*: a previous allocation or approval having the same *slice_urn* is not found.
 
