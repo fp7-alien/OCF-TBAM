@@ -1,13 +1,13 @@
 #TBAM Delegate
 
 The Delegate is a sub-module of the Time-Based Aggregate Manager and is provided as a plugin for [AMsoil](https://github.com/motine/AMsoil). 
-The Delegate sites between the GENIv3 Handler and the [TBAM Resource Manager](https://github.com/fp7-alien/OCF-TBAM/tree/master/TBAM-RM#tbam-resource-manager). It translates the GENIv3 call to the domain-specific call of the Resource Manager, in particular the [Resource Specification (RSpec)](http://groups.geni.net/geni/wiki/GeniRspec) into Time-based Resource Manager values (and back). Moreover, it handles the Resource Manager’s exceptions and re-throws them as the GENIv3 method API.
+The Delegate sits between the GENIv3 Handler and the [TBAM Resource Manager](https://github.com/fp7-alien/OCF-TBAM/tree/master/TBAM-RM#tbam-resource-manager). It translates the GENIv3 call to the domain-specific call of the Resource Manager, in particular the [Resource Specification (RSpec)](http://groups.geni.net/geni/wiki/GeniRspec) into Time-based Resource Manager values (and back). Moreover, it handles the Resource Manager’s exceptions and re-throws them as the GENIv3 method API.
 
-##Architecture
+##Interfaces
 
 TBAM Delegate methods corresponding to the GENIv3 API are:
 
-- *list_resources(client_cert, credentials, geni_available)*: retrieves the information of the network devices and the reserved time-slots through the Resource Manager. It returns an advertisement RSpec, for e.g.
+- *list_resources(client_cert, credentials, geni_available)*: retrieves the information of the network devices and the reserved time-slots through the Resource Manager. It returns an advertisement RSpec, e.g.:
 
 	```
  	 <rspec aggregate="http://example.com/aggregate" type="advertisement">  
@@ -38,19 +38,19 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
   	</rspec>
 	```
 
-	If the reservation is allocated, the Delegate returns to the GENIv3 Handler both geni_allocated status and a RSpec containing the information of the allocated resource. If the allocation fails, the Delegate raises one of these GENIv3 standard errors:
+	If the reservation is allocated, the Delegate returns to the GENIv3 Handler both the geni_allocated status and the RSpec containing the information of the allocated resource. If the allocation fails, the Delegate raises one of these GENIv3 standard errors:
 	
 	- *BADARGS*: indicates a malformed RSpec.
-	- *ERROR*: the database contains at least two entry with same *slice_urn*. This error should never happen, because the Resource Manager is in-charge of controlling the uniqueness of the *slice_urn*.
+	- *ERROR*: the database contains at least two entries with the same *slice_urn*. This error should never happen, because the Resource Manager is in-charge of controlling the uniqueness of the *slice_urn*.
 	- *ALREADYEXISTS*: the error is triggered by either an already used *slice_urn* or an overbooking of the time-slot.
 	- *SERVERERROR*: the communication between TBAM Resource Manager and TBAM Agent has encountered a problem.
 
-- *provision(urns, client_cert, credentials, best_effort, end_time, geni_users)*: translates the provision to the Resource Manager *approve_aggregate* request. If the request is approved, the Delegate returns *geni_allocated* status, *geni_configuring* operational status and an RSpec equal the one of the *allocate* method. In case of errors the method will raise:
-	- *BADARGS, ERROR*: equals to the aforementioned.
+- *provision(urns, client_cert, credentials, best_effort, end_time, geni_users)*: translates the provision to the Resource Manager *approve_aggregate* request. If the request is approved, the Delegate returns the *geni_allocated* status, the *geni_configuring* operational status and the RSpec equal the one of the *allocate* method. In case of errors the method will raise:
+	- *BADARGS, ERROR*: indicates a malformed RSpec.
 	- *SEARCHFAILED*: a previous allocation having the same *slice_urn* is not found.  
-	- *ALREADYEXISTS*: more allocation or approval exist with same *slice_urn*
+	- *ALREADYEXISTS*: another allocation or approval entry exists with same *slice_urn*
 	
-- *delete(self, urns, client_cert, credentials, best_effort)*: translate the *delete* to the Resource Manager *delete_aggregate*. It returns a *geni_unallocated* status or it throws:
+- *delete(self, urns, client_cert, credentials, best_effort)*: translates the *delete* from the Resource Manager *delete_aggregate*. It returns a *geni_unallocated* status or it throws:
 	- *BADARGS, ERROR*, *ALREADYEXISTS*: equals to the *provision* errors.
 	- *SEARCHFAILED*: a previous allocation or approval having the same *slice_urn* is not found.
 
