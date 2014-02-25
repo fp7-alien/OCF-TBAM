@@ -49,6 +49,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
 
     def list_resources(self, client_cert, credentials, geni_available):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
+    
          
         client_urn, client_uuid, client_email = self.auth(client_cert, credentials, None, ('listslices',))
         
@@ -74,7 +75,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         print(datetime.utcnow())
         
         return self.lxml_to_string(root_node)
-    
+        
     
     def describe(self, urns, client_cert, credentials):
         rspec, sliver_list = self.status(urns, client_cert, credentials)
@@ -91,7 +92,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         rspec_root = self.lxml_parse_rspec(rspec)
         for elm in rspec_root.getchildren():
             if not self.lxml_elm_has_request_prefix(elm, 'aggregate'):
-                raise geni_ex.GENIv3BadArgsError("RSpec contains elements/namespaces I dont understand (%s)." % (elm,))
+                raise geni_ex.GENIv3BadArgsError("RSpec contains unknown elements/namespaces (%s)." % (elm,))
             if (self.lxml_elm_equals_request_tag(elm, 'aggregate', 'slice')):
                 requested_res["slice_urn"] = elm.get("slice_urn")
             elif (self.lxml_elm_equals_request_tag(elm, 'aggregate', 'timeslot')):
@@ -106,7 +107,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
                 d[elm.get("OFELIA")] = elm.get("ALIEN")
                 requested_res["VLANs"] = d
             else:
-                raise geni_ex.GENIv3BadArgsError("RSpec contains an element I dont understand (%s)." % (elm,))
+                raise geni_ex.GENIv3BadArgsError("RSpec contains an unknown element (%s)." % (elm,))
         
         if not requested_res.get("VLANs"):
             requested_res["VLANs"] = None
@@ -119,7 +120,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
             raise geni_ex.GENIv3BadArgsError("RSpec does not contain a valid time-slot")
         
         try:
-            reservation = self._resource_manager.reserve_aggregate(slice_urn=requested_res["slice_urn"], owner_uuid=client_uuid, owner_mail=client_email, 
+            reservation = self._resource_manager.reserve_aggregate(slice_urn, owner_uuid=client_uuid, owner_mail=client_email, 
             start_time= requested_res["start_time"], end_time=requested_res["end_time"], 
             VLANs = requested_res["VLANs"], controller = requested_res["controller"], client_cert = None)
         except island_ex.IslandRMAlreadyReserved as e:
@@ -206,7 +207,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         """Helper method to create the sliver_status return values of allocate and other calls."""
         result = {'geni_sliver_urn' : urn,
 
-                  'geni_expires'    : datetime.utcnow(),
+                  'geni_expires'    : None,
                   'geni_allocation_status' : self.ALLOCATION_STATE_ALLOCATED}
         if(not include_allocation_status): 
             result['geni_allocation_status'] = self.ALLOCATION_STATE_UNALLOCATED

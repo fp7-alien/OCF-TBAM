@@ -42,7 +42,7 @@ class islandResourceManager(object):
     aggregate_schedule = schedule('aggregate', 604800)
     
     
-    AGGREGATE_CHECK_INTERVAL = 36000  # sec = 1 hour
+    AGGREGATE_CHECK_INTERVAL = 3600  # sec = 1 hour
    
     def __init__(self):
         super(islandResourceManager, self).__init__()
@@ -133,18 +133,30 @@ class islandResourceManager(object):
             # Update of a approved entry
                 # Checks if timeslot is equal; If they are not equal, it controls that is available.
                 if((not search[0].start_time == start_time) or (not search[0].end_time == end_time)):
-                        
-                    if(not self.checkAvailability(start_time, end_time)):
+                    list = self.aggregate_schedule.find(start_time=start_time, end_time=end_time)
+                    #More reservation...
+                    if(len(list) > 1):
                         raise islandex.IslandRMAlreadyReserved(start_time, end_time)
+                    #Control if the reservation is the same
+                    elif (len(list) == 1):
+                        if(list[0].slice_urn == slice_urn):
+                            raise islandex.IslandRMAlreadyReserved(start_time, end_time)
                 
                 if(not search[0].started):
                     print("not started")
                     # If the experiment is not started, it updates only the db.
                     update = self.aggregate_schedule.update(search[0].reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, 
                                                             start_time=start_time, end_time=end_time)
+                #Started but reservation moved to the feature
+                elif(start_time > datetime.utcnow()):
+                    if(CONN_WITH_AGENT):
+                        client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+                        self.remove_settings(client, search[0])
+                    update = self.aggregate_schedule.update(search[0].reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, 
+                                                            start_time=start_time, end_time=end_time)
                     
+                #Only started
                 else:
-                    print("started")
                     # If the experiment is started, I need to propagate the update through the TBAM Agent if there is an
                     # update of VLANs or Contoller or client_pub_cert
                     
@@ -203,7 +215,12 @@ class islandResourceManager(object):
         # It checks that there is not difference between allocate and provision: the 
         # time slot and the owner _uuid must be the same. 
         approve = self.aggregate_schedule.update(search[0].reservation_id, allocate=False, started=False)
-                    
+        
+        list = self.aggregate_schedule.find(allocate=False)
+        print("approved:")
+        for entry in list:
+            print(entry.slice_urn)
+        
         approve.start_time = approve.start_time.strftime('%d/%m/%Y %H:%M:%S')
         approve.end_time = approve.end_time.strftime('%d/%m/%Y %H:%M:%S')
         return approve
@@ -221,17 +238,12 @@ class islandResourceManager(object):
         for entry in search:
             #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
             #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
-            if(CONN_WITH_AGENT):
-                try:
-                    if not entry.resource_spec.get("controller") is None:
-                        client.remTCPProxy(entry.resource_spec.get("controller"))
-                    if not entry.resource_spec.get("VLANs") is None:
-                        client.remOvS(entry.resource_spec.get("VLANs"))
-                    if not entry.resource_spec.get("client_cert") is None:
-                        client.remUserAuth(entry.resource_spec.get("client_cert"))
-                except Exception, err:
-                    raise islandex.IslandRMRPCError(err) 
-            removed = self.aggregate_schedule.cancel(entry.reservation_id)
+            if(entry.started):
+                if(CONN_WITH_AGENT):
+                    self.remove_settings(client, entry)
+                    removed = self.aggregate_schedule.cancel(entry.reservation_id)
+            else:
+                removed = self.aggregate_schedule.cancel(entry.reservation_id)
         
         removed.start_time = removed.start_time.strftime('%d/%m/%Y %H:%M:%S')
         removed.end_time = removed.end_time.strftime('%d/%m/%Y %H:%M:%S')
@@ -259,42 +271,47 @@ class islandResourceManager(object):
         
         list = self.aggregate_schedule.find(allocate=False, started=True)
             
-        for entry in list:
-            if(entry.end_time < datetime.utcnow()):
-                print("stopping %s", entry.slice_urn)
+        if(list):
+            if(list[0].end_time < datetime.utcnow()):
+                print("stopping %s", list[0].slice_urn)
                 
                 if(CONN_WITH_AGENT):
-                    try:
-    
-                        if not entry.resource_spec.get("controller") is None:
-                            client.remTCPProxy(entry.resource_spec.get("controller"))
-                        if not entry.resource_spec.get("VLANs") is None:
-                            client.remOvS(entry.resource_spec.get("VLANs"))
-                        if not entry.resource_spec.get("client_cert") is None:
-                            client.remUserAuth(entry.resource_spec.get("client_cert"))
-                    except Exception, err:
-                            raise islandex.IslandRMRPCError(err)    
-                self.aggregate_schedule.cancel(entry.reservation_id)
+                    self.remove_settings(client, list[0])
+                
+                self.aggregate_schedule.cancel(list[0].reservation_id)
         
         list = self.aggregate_schedule.find(start_time=datetime.utcnow(), allocate=False, started=False)
-        for entry in list:
-            print("starting %s", entry.slice_urn)
+        if(list):
+            print("starting %s", list[0].slice_urn)
                             
             if(CONN_WITH_AGENT):
 
                 try:
-                    if not entry.resource_spec.get("controller") is None:
-                        client.setTCPProxy(entry.resource_spec.get("controller"))
-                    if not entry.resource_spec.get("VLANs") is None:
-                        client.setOvS(entry.resource_spec.get("VLANs"))
-                    if not entry.resource_spec.get("client_cert") is None:
-                        client.setUserAuth(entry.resource_spec.get("client_cert"))
+                    if not list[0].resource_spec.get("controller") is None:
+                        client.setTCPProxy(list[0].resource_spec.get("controller"))
+                    if not list[0].resource_spec.get("VLANs") is None:
+                        client.setOvS(list[0].resource_spec.get("VLANs"))
+                    if not list[0].resource_spec.get("client_cert") is None:
+                        client.setUserAuth(list[0].resource_spec.get("client_cert"))
                 except Exception, err:
                     raise islandex.IslandRMRPCError(err)
-            self.aggregate_schedule.update(entry.reservation_id, started=True)
+            self.aggregate_schedule.update(list[0].reservation_id, started=True)
         
         return
     
+    
+    def remove_settings(self, client, entry):
+        try:
+            if not entry.resource_spec.get("controller") is None:
+                client.remTCPProxy(entry.resource_spec.get("controller"))
+            if not entry.resource_spec.get("VLANs") is None:
+                client.remOvS(entry.resource_spec.get("VLANs"))
+            if not entry.resource_spec.get("client_cert") is None:
+                client.remUserAuth(entry.resource_spec.get("client_cert"))
+        except Exception, err:
+            raise islandex.IslandRMRPCError(err)  
+        return
+                
     
 class SafeTransportWithCert(xmlrpclib.SafeTransport):
     def __init__(self, use_datetime=0, keyfile=None, certfile=None,
