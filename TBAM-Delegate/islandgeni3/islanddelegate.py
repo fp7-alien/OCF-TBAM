@@ -1,4 +1,3 @@
-
 import amsoil.core.log
 import amsoil.core.pluginmanager as pm
 from datetime import datetime, timedelta
@@ -27,15 +26,15 @@ class ISLANDdelegate(GENIv3DelegateBase):
     
     def get_request_extensions_mapping(self):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
-        return {'aggregate' : 'http://example.com/dhcp'} # /request.xsd
+        return {'aggregate' : 'http://example.com/aggregate'} # /request.xsd
     
     def get_manifest_extensions_mapping(self):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
-        return {'aggregate' : 'http://example.com/dhcp'} # /manifest.xsd
+        return {'aggregate' : 'http://example.com/aggregate'} # /manifest.xsd
     
     def get_ad_extensions_mapping(self):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
-        return {'aggregate' : 'http://example.com/dhcp'} # /ad.xsd
+        return {'aggregate' : 'http://example.com/aggregate'} # /ad.xsd
     
     def is_single_allocation(self):
         """Documentation see [geniv3rpc] GENIv3DelegateBase.
