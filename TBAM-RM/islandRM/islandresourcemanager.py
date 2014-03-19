@@ -44,7 +44,7 @@ class islandResourceManager(object):
     aggregate_schedule = schedule('aggregate', 604800)
     
     
-    AGGREGATE_CHECK_INTERVAL = 30  # sec = 1 hour
+    AGGREGATE_CHECK_INTERVAL = 3600  # sec = 1 hour
    
     def __init__(self):
         super(islandResourceManager, self).__init__()
