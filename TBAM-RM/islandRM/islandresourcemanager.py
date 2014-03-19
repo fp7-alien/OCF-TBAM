@@ -26,9 +26,11 @@ logger = amsoil.core.log.getLogger('islandresourcemanager')
 CONN_WITH_AGENT = False
 
 if(CONN_WITH_AGENT):
-    CLIENT_KEY_PATH = "/root/AlienAM/Original/.gcf/alice-key.pem"
-    CLIENT_CERT_PATH =  "/root/AlienAM/Original/.gcf/alice-cert.pem"
+    CLIENT_KEY_PATH = "/root/AlienAM/.gcf/alice-key.pem"
+    CLIENT_CERT_PATH =  "/root/AlienAM/.gcf/alice-cert.pem"
 
+OFGW_ADDRESS = "localhost"
+OFGW_PORT = 8234
 
 worker = pm.getService('worker')
 config = pm.getService("config")
@@ -42,24 +44,23 @@ class islandResourceManager(object):
     aggregate_schedule = schedule('aggregate', 604800)
     
     
-    AGGREGATE_CHECK_INTERVAL = 3600  # sec = 1 hour
+    AGGREGATE_CHECK_INTERVAL = 30  # sec = 1 hour
    
     def __init__(self):
         super(islandResourceManager, self).__init__()
         #Check the starting or expiration of the experiment 
         worker.addAsReccurring("islandresourcemanager", "check_provision", None, self.AGGREGATE_CHECK_INTERVAL)
         
-        
     def getSws(self):
         #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
         #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
         if(CONN_WITH_AGENT):
-            client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+            client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
             
             try:
                 sws = client.getSws()
             except Exception, err:
-                raise islandex.IslandRMRPCError(err)
+                    raise islandex.IslandRMRPCError(err)
         else:
             sws = []
             sws.append({"dipd" : "00:00:00:00:00:00:00"})
@@ -70,7 +71,7 @@ class islandResourceManager(object):
         #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
         #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
         if(CONN_WITH_AGENT):
-            client = make_client("https://localhost:8234", CLIENT_KEY_PATH, "/root/AlienAM/Original/.gcf/alice-cert.pem");
+            client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
             
             try:
                 links = client.getLinks()
@@ -150,7 +151,7 @@ class islandResourceManager(object):
                 #Started but reservation moved to the feature
                 elif(start_time > datetime.utcnow()):
                     if(CONN_WITH_AGENT):
-                        client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+                        client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
                         self.remove_settings(client, search[0])
                     update = self.aggregate_schedule.update(search[0].reservation_id, resource_spec={"VLANs" : VLANs, "controller" : controller, "client_cert" : client_cert}, 
                                                             start_time=start_time, end_time=end_time)
@@ -163,7 +164,7 @@ class islandResourceManager(object):
                     #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
                     #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
                     if(CONN_WITH_AGENT):
-                        client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+                        client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
 
                     if(not search[0].resource_spec.get("VLANs") == VLANs):
                         if(CONN_WITH_AGENT):                    
@@ -234,7 +235,7 @@ class islandResourceManager(object):
             raise islandex.IslandRMNotAllocated(slice_urn)
         
         if(CONN_WITH_AGENT):
-            client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+            client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
         for entry in search:
             #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
             #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
@@ -267,7 +268,7 @@ class islandResourceManager(object):
         #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
         #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
         if(CONN_WITH_AGENT):
-            client = make_client("https://localhost:8234", CLIENT_KEY_PATH, CLIENT_CERT_PATH);
+            client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
         
         list = self.aggregate_schedule.find(allocate=False, started=True)
             
