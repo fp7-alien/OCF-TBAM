@@ -140,7 +140,7 @@ class islandResourceManager(object):
                         raise islandex.IslandRMAlreadyReserved(start_time, end_time)
                     #Control if the reservation is the same
                     elif (len(list) == 1):
-                        if(list[0].slice_urn == slice_urn):
+                        if(list[0].slice_urn != slice_urn):
                             raise islandex.IslandRMAlreadyReserved(start_time, end_time)
                 
                 if(not search[0].started):
