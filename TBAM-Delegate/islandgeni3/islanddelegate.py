@@ -1,3 +1,4 @@
+
 import amsoil.core.log
 import amsoil.core.pluginmanager as pm
 from datetime import datetime, timedelta
@@ -50,7 +51,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
     
          
-        client_urn, client_uuid, client_email = self.auth(client_cert, credentials, None, ('listslices',))
+        #client_urn, client_uuid, client_email = self.auth(client_cert, credentials, None, ('listslices',))
         
         root_node = self.lxml_ad_root()
         E = self.lxml_ad_element_maker('aggregate')
@@ -84,7 +85,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
 
     def allocate(self, slice_urn, client_cert, credentials, rspec, end_time=None):
         """Documentation see [geniv3rpc] GENIv3DelegateBase."""
-        client_urn, client_uuid, client_email = self.auth(client_cert, credentials, slice_urn, ('createsliver',))
+        #client_urn, client_uuid, client_email = self.auth(client_cert, credentials, slice_urn, ('createsliver',))
         
         requested_res = {}
         # parse RSpec -> requested_ips
@@ -119,7 +120,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
             raise geni_ex.GENIv3BadArgsError("RSpec does not contain a valid time-slot")
         
         try:
-            reservation = self._resource_manager.reserve_aggregate(slice_urn, owner_uuid=client_uuid, owner_mail=client_email, 
+            reservation = self._resource_manager.reserve_aggregate(slice_urn, owner_uuid=None, owner_mail=None, 
             start_time= requested_res["start_time"], end_time=requested_res["end_time"], 
             VLANs = requested_res["VLANs"], controller = requested_res["controller"], client_cert = None)
         except island_ex.IslandRMAlreadyReserved as e:
@@ -144,7 +145,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
     def provision(self, urns, client_cert, credentials, best_effort, end_time, geni_users):
         for urn in urns:
             if (self.urn_type(urn) == 'slice'):
-                client_urn, client_uuid, client_email = self.auth(client_cert, credentials, urn, ('createsliver',)) # authenticate for each given slice
+                #client_urn, client_uuid, client_email = self.auth(client_cert, credentials, urn, ('createsliver',)) # authenticate for each given slice
 
                 try:
                     approved = self._resource_manager.approve_aggregate(slice_urn=urn)
@@ -178,7 +179,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
     def delete(self, urns, client_cert, credentials, best_effort):                
         for urn in urns:
             if (self.urn_type(urn) == 'slice'):
-                client_urn, client_uuid, client_email = self.auth(client_cert, credentials, urn, ('createsliver',)) # authenticate for each given slice
+                #client_urn, client_uuid, client_email = self.auth(client_cert, credentials, urn, ('createsliver',)) # authenticate for each given slice
 
                 try:
                     removed = self._resource_manager.delete_aggregate(slice_urn=urn)
@@ -232,4 +233,5 @@ class ISLANDdelegate(GENIv3DelegateBase):
             r.append(E.controller(url = aggregate.resource_spec.get("controller")))
         manifest.append(r)
         return manifest
+
 
