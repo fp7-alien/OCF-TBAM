@@ -100,7 +100,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
                 requested_res["start_time"] = elm.get("start_time")
                 requested_res["end_time"] = elm.get("end_time")
             elif (self.lxml_elm_equals_request_tag(elm, 'aggregate', 'controller')):
-                requested_res["controller"] = elm.get("url")
+                requested_res["controller"] = elm.get("url").strip("tcp:")
             elif (self.lxml_elm_equals_request_tag(elm, 'aggregate', 'VLAN')):
                 d = VLANs
                 d[elm.get("OFELIA")] = elm.get("ALIEN")
