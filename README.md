@@ -2,7 +2,7 @@
 <!-- modificato -->
 The Time-Based Aggregate Manager (TBAM) provides the integration of ALIEN hardware into the [Ofelia Control Framework (OCF)](https://github.com/fp7-ofelia/ocf).
 
-The TBAM is developed using the [AMsoil](https://github.com/motine/AMsoil) framework and the new functionality are provided through three different plug-in.
+The TBAM is developed using the [AMsoil](https://github.com/motine/AMsoil) framework and the new functionalities are provided through three different plug-in.
 <!-- copiato da M13-->
 In particular the TBAM integrates a calendar-like aggregate manager the [TBAM Scheduling Plug-in](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/schedule), a resource manager which performs the actual provisioning of the slices (the [TBAM RM](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/islandRM)) and a module that translates the requests for the RM (the [TBAM Delegate](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/islandgeni3). The TBAM is connected to ALIEN resources via the [OpenFlow Gateway (OFGW)](https://github.com/fp7-alien/OCF-OFGW) and to the Expedient via the Time Based plugin ([TB Plugin](https://github.com/fp7-alien/OCF-TBPlugin)) as depicted on [figure](https://wiki.man.poznan.pl/alien/img_auth.php/a/a4/Work_distribution.png).
 <!-- fine copiato-->
