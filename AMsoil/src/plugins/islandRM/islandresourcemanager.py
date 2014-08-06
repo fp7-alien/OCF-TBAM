@@ -1,41 +1,37 @@
-from datetime import datetime, timedelta
-import time
+from datetime import datetime
 import xmlrpclib
-import os
 
 from amsoil.config import expand_amsoil_path
 import amsoil.core.log
-import amsoil.core.log
-import amsoil.core.pluginmanager as pm
 import amsoil.core.pluginmanager as pm
 import islandrmexceptions as islandex
 
-import pickle
-
-
-import httplib
-import socket
-import sys
 import M2Crypto.SSL
 from web.db import database
 
 
+
 logger = amsoil.core.log.getLogger('islandresourcemanager')
 
-#If set to False: avoid the connection to the TBAM Agent. 
-CONN_WITH_AGENT = False
-
-if(CONN_WITH_AGENT):
-    CLIENT_KEY_PATH = "../certs/alice-key.pem"
-    CLIENT_CERT_PATH =  "../certs/alice-cert.pem"
-
-OFGW_ADDRESS = "localhost"
-OFGW_PORT = 8234
 
 worker = pm.getService('worker')
 config = pm.getService("config")
 schedule = pm.getService('schedule')
 scheduleex = pm.getService('scheduleexceptions')
+
+config.install("OFGW_ADDRESS", "localhost", "OFGW IP Address")
+config.install("OFGW_PORT", 8234, "OFGW port")
+config.install("CLIENT_KEY_PATH", "../certs/alice-key.pem", "Client key path to communicate with OFGW")
+config.install("CLIENT_CERT_PATH", "../certs/alice-cert.pem", "Client certificate path to communicate with OFGW")
+#If set to False: avoid the connection to the TBAM Agent. 
+config.install("CONN_WITH_AGENT", False, "Disable (False) / enable (True)  the connection with the OFGW")
+CONN_WITH_AGENT = config.get("CONN_WITH_AGENT")
+if(CONN_WITH_AGENT):
+    
+    CLIENT_KEY_PATH = config.get("CLIENT_KEY_PATH")
+    CLIENT_CERT_PATH =  config.get("CLIENT_CERT_PATH")
+    OFGW_ADDRESS = config.get("OFGW_ADDRESS")
+    OFGW_PORT = config.get("OFGW_PORT")
 
 class islandResourceManager(object):
     
