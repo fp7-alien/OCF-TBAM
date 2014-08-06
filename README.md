@@ -73,7 +73,7 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
 The Resource Manager is in charge of configuring the ALIEN aggregate and of ensuring that the aggregate is accessed using a time-based fashion: a experimenter reserves the resources for a time-slot and the access is guaranteed exclusively in this period for that particular user and eventually for other users authorized by the experimenter.
 <!-- fine modificato -->
 
-##Architecture
+###Architecture
 The Resource Manager (RM) implements domain-specific methods to manage the resources (see also [Resource Manager in the AMsoil architecture](https://github.com/motine/AMsoil/wiki/GENI#wiki-resource-manager)). In particular the northbound interface of TBAM RM provides a set of methods that the TBAM Delegate uses to interact with the RM and to perform operations like the allocation and provisioning of the resources. On the other side, the southbound interface of the TBAM RM guarantees the booking of resources (through the Scheduling plug-in) and the configuration of the parameters required by the user (through the OFGW TBAM Agent).
 
 The Resource Manager also checks the start or expiration of the experiment based on the time-slot *check_provision()*. The method exploits the [AMsoil worker](https://github.com/motine/AMsoil/wiki/Worker).
@@ -87,27 +87,20 @@ The *allocate* call is also used to update already approved or provisioned slice
 
 The following table lists the APIs exposed by the Resource Manager on the northbound interface. The table is organized as follows: on the leftmost column are listed the GENI v3 API methods that the TBAM delegate exposes to the TB Plugin for Expedient. On the rightmost column, the corresponding TBAM RM methods are provided.
 
-GENI API  v3  | Corresponding TBAM Resource Manager methods
+GENI API  v3  | Corresponding TBAM Resource Manager methods |
 ------------- | -------------
-listResources | *getSws():* returns a list of DPIDs of the switches <br> *getLinks():* returns a list of links (e.g. “srcDPID srcPort dstDPID pdstPort”) <br> *getAvailability():* returns all reserved time-slot (start_time=datetime, end_time=datetime, slice_urn) <br> *checkAvailability(start_time, end_time):* returns *true* if the time-slot is available 
+listResources | *getSws():* returns a list of DPIDs of the switches <br> *getLinks():* returns a list of links (e.g. “srcDPID srcPort dstDPID pdstPort”) <br> *getAvailability():* returns all reserved time-slot (start_time=datetime, end_time=datetime, slice_urn) <br> *checkAvailability(start_time, end_time):* returns *true* if the time-slot is available
 allocate  | *reserve_aggregate(slice_urn, owner_uuid, owner_mail, start_time, end_time, VLANs, Controller, projectInfo):* controls the availability and processes the temporary booking of the entire ALIEN aggregate in the provided time-slot. Also the provided parameters are saved in the database thanks to the Scheduling plugin: <br>- *projectInfo*: contains the project information (project id and name) that will allow the user to access the OFGW (detailed in the [OFGW TBAM-Agent](https://github.com/fp7-alien/OCF-OFGW/tree/master/TBAM-Agent#users-authentication)). <br> - *VLANs*: permits the VLAN tag rewriting for the network traffic exchanged between OFELIA and ALIEN islands. It is based on a python dict, for instance *{"10" : "0xffff", "30" : "20"}* OFELIA VLAN 10 is set as untagged within ALIEN and OFELIA VLAN 30 is rewritten to the ALIEN VLAN 20. <br> - *controller*: contains the user's  OpenFlow controller IP address and port as a python string *"192.168.100.1:6633"* <br> The allocate method provides also the update of an approved or provisioned entry. In particular when an allocate with same *slice_urn* is received, all the parameters are updated. If the approved entry is started, the update process will involved also the TBAM Agent for install the new configurations.
 provision | *approve_aggregate(slice_urn):* The provision is approved if there is previous allocation with same *slice_urn* 
-delete | *delete_aggregate(slice_urn)*: releases an allocated or approved slice identified by *slice_urn* by deleting the entry in the Scheduling Plugin database. If the slice has already been started, the Resource Manager tells the TBAM Agent to restore the resources and its internal modules to the default configuration. 
+delete | *delete_aggregate(slice_urn)*: releases an allocated or approved slice identified by *slice_urn* by deleting the entry in the Scheduling Plugin database. If the slice has already been started, the Resource Manager tells the TBAM Agent to restore the resources and its internal modules to the default configuration.
 
-### TBAM Resource Manager <--> TBAM Scheduling plugin
+The TBAM Resource Manager raises these errors when encountering exceptions:
 
-The Resource Manager leverages on the TBAM Scheduling Plug-in to record the allocated/provisioned time-slots and to avoid conflicts among different experiments. 
-In addition, the API that the [Scheduling Plug-in](https://github.com/motine/AMsoil/wiki/Schedule) exposes to access its internal database has been extended with the following:
-
-- flag allocate/approved. Indicates if the slice in the database has been already approved or just allocated. Allocated slices expire after a pre-determined time (set by default to 48 hours). 
-- flag started/not started. Indicates whether an approved slice is currently started or not (in other words if it is provisioned or not). 
-
-Other parameters, that do not require any modification in the existing API, exploit the *resource_spec* of the scheduling plugin:
-
-- project id and name
-- controller IP and port
-- VLANs Mapping
-
+- *IslandRMRPCError*: the connection from TBAM Resource Manager and TBAM Agent returns an error. All aforementioned TBAM RM methods can raise these exception.
+-  *IslandRMMoreSliceWithSameID*: can be raised by *reserve_aggregate* and *approve_aggregate* and the error means that the TBAM Scheduling Plugin contains at least two slices having the same slice_urn.
+- *IslandRMNotUnivocal*: if the TBAM RM finds a conflict with already existing slice_urn during the *reserve_aggregate*, the *IslandRMNotUnivocal* error is returned.
+- *IslandRMNotAllocated*: if *delete_aggregate* and *approve_aggregate* are called for a slice not already allocated or approved, the *IslandRMNotAllocated* is raised. 
+- *IslandRMAlreadyReserved*: it is used by the reserve_aggregate when the TBAM Scheduling Plugin find an overbooking error.
 
 ### Southbound interface: TBAM Resource Manager <--> OFGW TBAM Agent
 The TBAM Agent is an internal OFGW sub-module that is invoked by the TBAM RM to provision/reset the resources. In addition the TBAM Agent permits to retrieve the information of the network devices and to access the forwarding plane through some pre-defined functionalities exposed by the Management plane. The communication between the TBAM Resource Manager and TBAM Agent is achieved through a SecureXMLRPC protocol.
@@ -120,6 +113,20 @@ set/setUserAuth(projectInfo) |  manages the user's credentials needed by the use
 set/remTCPProxy (controller) |  configures the TCP Proxy daemon with the user's controllers coordinates
 set/remOvs(VLANs) | configures the VLAN mapping between Alien and OFELIA forwarding planes
 
+
+## TBAM Scheduling plugin
+
+The Resource Manager leverages on the TBAM Scheduling Plug-in to record the allocated/provisioned time-slots and to avoid conflicts among different experiments. 
+In addition, the API that the [Scheduling Plug-in](https://github.com/motine/AMsoil/wiki/Schedule) exposes to access its internal database has been extended with the following:
+
+- flag allocate/approved. Indicates if the slice in the database has been already approved or just allocated. Allocated slices expire after a pre-determined time (set by default to 48 hours). 
+- flag started/not started. Indicates whether an approved slice is currently started or not (in other words if it is provisioned or not). 
+
+Other parameters, that do not require any modification in the existing API, exploit the *resource_spec* of the scheduling plugin:
+
+- project id and name
+- controller IP and port
+- VLANs Mapping
 <!-- fine modificato ma solo leggermente -->
 
 <!--  modificato -->
