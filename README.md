@@ -1,13 +1,10 @@
 #OCF-TBAM
-<!-- modificato -->
+
 The Time-Based Aggregate Manager (TBAM) provides the integration of ALIEN hardware into the [Ofelia Control Framework (OCF)](https://github.com/fp7-ofelia/ocf).
 
 The TBAM is developed using the [AMsoil](https://github.com/motine/AMsoil) framework and the new functionalities are provided through three different plug-ins.
-<!-- copiato da M13-->
-In particular, the TBAM integrates a calendar-like aggregate manager ([TBAM Scheduling Plug-in](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/schedule)), a resource manager which performs the actual provisioning of the slices (the [TBAM RM](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/islandRM)) and a module that translates the requests for the RM (the [TBAM Delegate](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/islandgeni3). The TBAM is connected to ALIEN resources via the [OpenFlow Gateway (OFGW)](https://github.com/fp7-alien/OCF-OFGW) and to the Expedient via the Time Based plugin ([TB Plugin](https://github.com/fp7-alien/OCF-TBPlugin)) as depicted on [figure](https://wiki.man.poznan.pl/alien/img_auth.php/a/a4/Work_distribution.png).
-<!-- fine copiato-->
 
-<!-- fine modificato -->
+In particular, the TBAM integrates a calendar-like aggregate manager ([TBAM Scheduling Plug-in](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/schedule)), a resource manager which performs the actual provisioning of the slices (the [TBAM RM](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/islandRM)) and a module that translates the requests for the RM (the [TBAM Delegate](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/islandgeni3). The TBAM is connected to ALIEN resources via the [OpenFlow Gateway (OFGW)](https://github.com/fp7-alien/OCF-OFGW) and to the Expedient via the Time Based plugin ([TB Plugin](https://github.com/fp7-alien/OCF-TBPlugin)) as depicted on [figure](https://wiki.man.poznan.pl/alien/img_auth.php/a/a4/Work_distribution.png).
 
 ##TBAM Delegate
 
@@ -69,18 +66,11 @@ TBAM Delegate methods corresponding to the GENIv3 API are:
 
 
 ##TBAM Resource Manager
-<!-- modificato -->
-The Resource Manager is in charge of configuring the ALIEN aggregate and of ensuring that the aggregate is accessed using a time-based fashion: a experimenter reserves the resources for a time-slot and the access is guaranteed exclusively in this period for that particular user and eventually for other users authorized by the experimenter.
-<!-- fine modificato -->
-
-###Architecture
-The Resource Manager (RM) implements domain-specific methods to manage the resources (see also [Resource Manager in the AMsoil architecture](https://github.com/motine/AMsoil/wiki/GENI#wiki-resource-manager)). In particular the northbound interface of TBAM RM provides a set of methods that the TBAM Delegate uses to interact with the RM and to perform operations like the allocation and provisioning of the resources. On the other side, the southbound interface of the TBAM RM guarantees the booking of resources (through the Scheduling plug-in) and the configuration of the parameters required by the user (through the OFGW TBAM Agent).
-
-The Resource Manager also checks the start or expiration of the experiment based on the time-slot *check_provision()*. The method exploits the [AMsoil worker](https://github.com/motine/AMsoil/wiki/Worker).
+The Resource Manager is a sub-module of the Time-Based Aggregate Manager and is provided as a plugin for AMsoil. The Resource Manager is in charge of configuring the ALIEN aggregate and of ensuring that the aggregate is accessed by only users assigned to the ongoing experiment. The TBAM RM implements domain-specific methods to manage the resources (see also [Resource Manager in the AMsoil architecture](https://github.com/motine/AMsoil/wiki/GENI#wiki-resource-manager). In particular the northbound interface of TBAM RM provides a set of methods that the TBAM Delegate uses to interact with the TBAM RM and to perform operations like the allocation and provisioning of the resources. On the other side, the southbound interface of the TBAM RM guarantees the booking of resources (through the [scheduling plugin](https://github.com/fp7-alien/OCF-TBAM/tree/master/AMsoil/src/plugins/schedule)) and the configuration of the parameters required by the user (through the OFGW TBAM Agent).Finally, the TBAM RM checks the start or expiration of the experiments through a mechanism which is based on the AMsoil worker services [AMsoil worker](https://github.com/motine/AMsoil/wiki/Worker).
 
 
 ###Northbound interface: TBAM Delegate <--> TBAM Resource Manager
-<!-- modificato ma solo leggermente -->
+
 The RM operations are divided into two stages. First, the temporary booking of an ALIEN aggregate for a given time-slot is achieved through an *allocate* call. Nothing is configured on the ALIEN devices, the RM just updates the database of the Scheduling Plugin. In a second stage, the booked time-slot is approved through a *provision* call. Also in this stage the only operation performed by the RM is updating the database entry status from "allocated" to "approved". The *provision* is not approved if the time-slot is different from the one provided during the allocation.
 The real provisioning of the slice is performed automatically by the RM by sending the configuration parameters to the OpenFlow Gateway (OFGW) at the beginning of the time-slot.
 The *allocate* call is also used to update already approved or provisioned slices (e.g., to change the controller information or to extend/reduce the time-slot). This is achieved through a parameter that identifies the slice (slice_urn). 
@@ -96,11 +86,7 @@ delete | *delete_aggregate(slice_urn)*: releases an allocated or approved slice 
 
 The TBAM Resource Manager raises these errors when encountering exceptions:
 
-- *IslandRMRPCError*: the connection from TBAM Resource Manager and TBAM Agent returns an error. All aforementioned TBAM RM methods can raise these exception.
--  *IslandRMMoreSliceWithSameID*: can be raised by *reserve_aggregate* and *approve_aggregate* and the error means that the TBAM Scheduling Plugin contains at least two slices having the same slice_urn.
-- *IslandRMNotUnivocal*: if the TBAM RM finds a conflict with already existing slice_urn during the *reserve_aggregate*, the *IslandRMNotUnivocal* error is returned.
-- *IslandRMNotAllocated*: if *delete_aggregate* and *approve_aggregate* are called for a slice not already allocated or approved, the *IslandRMNotAllocated* is raised. 
-- *IslandRMAlreadyReserved*: it is used by the reserve_aggregate when the TBAM Scheduling Plugin find an overbooking error.
+-	IslandRMRPCError: the connection from TBAM RM and TBAM Agent returns an error. All aforementioned TBAM RM methods can raise this error;-	IslandRMMoreSliceWithSameID: can be raised by reserve_aggregate and approve_aggregate and the error means that the TBAM Scheduling Plugin contains at least two slices having the same slice_urn.-	IslandRMNotUnivocal: the TBAM RM have found a conflict with an already existing slice_urn during the reserve_aggregate;-	IslandRMNotAllocated: delete_aggregate and approve_aggregate are called for a slice not already allocated or approved;-	IslandRMAlreadyReserved: it is used by the reserve_aggregate when the TBAM Scheduling Plugin finds an overbooking error.
 
 ### Southbound interface: TBAM Resource Manager <--> OFGW TBAM Agent
 The TBAM Agent is an internal OFGW sub-module that is invoked by the TBAM RM to provision/reset the resources. In addition the TBAM Agent permits to retrieve the information of the network devices and to access the forwarding plane through some pre-defined functionalities exposed by the Management plane. The communication between the TBAM Resource Manager and TBAM Agent is achieved through a SecureXMLRPC protocol.
@@ -109,7 +95,7 @@ TBAM Agent exposed methods   | Functionality
 ------------- | -------------
 getSws | returns the DPIDs of the switches retrieved through MGMT interface
 getLinks | returns the links between switches retrieved through MGMT interface
-set/setUserAuth(projectInfo) |  manages the user's credentials needed by the user to access the OFGW
+set/remUserAuth(projectInfo) |  manages the user's credentials needed by the user to access the OFGW
 set/remTCPProxy (controller) |  configures the TCP Proxy daemon with the user's controllers coordinates
 set/remOvs(VLANs) | configures the VLAN mapping between Alien and OFELIA forwarding planes
 
@@ -127,15 +113,12 @@ Other parameters, that do not require any modification in the existing API, expl
 - project id and name
 - controller IP and port
 - VLANs Mapping
-<!-- fine modificato ma solo leggermente -->
 
-<!--  modificato -->
 ##INSTALLATION
 
-The repository contains both AMsoil and the modules ready to be used. In addition also the testing certificates that provides the communication between north- and southbound interfaces are installed. 
+AMSoil requires Python version 2.7 [AMsoil installation], therefore a Debian 7 Linux OS is recommended. However, during the testing phase we were able to install both Expedient and the TBAM on the same Debian 6 machine (required by Expedient) by adding the version 2.7 of Python to the system.The repository [TBAM code] contains the AMsoil code tree with the three modules discussed in this chapter already installed in the AMsoil/src/plugins (see [TBAM Delegate], [TBAM RM] and [TBAM scheduling plugin]). To start the TBAM, first run command python AMsoil/src/main.py and then AMsoil/src/main.py –worker to start the worker server.
 
-The southbound interface of the TBAM Resource Manager allows the communication with the OFGW through the TBAM Agent. However, for testing purposes, this interface can be disabled and Resource Manager will use fake fixed data that will be returned to the TBAM Delegate when requested (e.g. with the listResources command). The connection to the TBAM Agent can be enabled/disabled by changing the *CONN_WITH_AGENT* parameter to *True*/*False* in the *src/plugins/islandRM/islandresourcemanager.py*. Obviously, the activation of this connection requires the installation and configuration of the [OFGW](https://github.com/fp7-alien/OCF-OFGW/tree/master/TBAM-Agent#installation). 
-
-Enter the the AMsoil (e.g., *cd AMsoil*) folder and start the server once via *python src/main.py* and the worker server via *src/main.py --worker*.
-
-<!-- modificato -->
+The southbound interface of the TBAM Resource Manager allows the communication with the OFGW through the TBAM Agent. However, for testing purposes, this interface can be disabled and Resource Manager will use fake fixed data that will be returned to the TBAM Delegate when requested (e.g. with the listResources command). The connection to the TBAM Agent can be enabled/disabled by changing the CONN_WITH_AGENT parameter to True/False. 
+The connection to the TBAM Agent uses other three parameters OFGW IP address (OFGW_ADDRESS) and port (OFGW_PORT) and certificates (see [TBAM-AGENT Installation](https://github.com/fp7-alien/OCF-OFGW/tree/master/TBAM-Agent#installation) (CLIENT_KEY_PATH and CLIENT_CERT_PATH).
+The aforementioned parameters can be changed through the [AMsoil configuration](https://github.com/motine/AMsoil/wiki/Configuration) e.g, *cd AMsoil/admin && python config_client.py --set CONN_WITH_AGENT=1*.
+Obviously, the activation of this connection requires the installation and configuration of the OFGW as detailed in [TBAM-AGENT Installation](https://github.com/fp7-alien/OCF-OFGW/tree/master/TBAM-Agent#installation). 
