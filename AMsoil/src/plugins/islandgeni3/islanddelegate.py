@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 
 
 
-# logger=amsoil.core.log.getLogger('islanddelegate')
+#logger = amsoil.core.log.getLogger('islanddelegate')
 
 GENIv3DelegateBase = pm.getService('geniv3delegatebase')
 geni_ex = pm.getService('geniv3exceptions')

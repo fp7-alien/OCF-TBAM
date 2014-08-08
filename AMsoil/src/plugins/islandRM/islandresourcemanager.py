@@ -48,8 +48,6 @@ class islandResourceManager(object):
         worker.addAsReccurring("islandresourcemanager", "check_provision", None, self.AGGREGATE_CHECK_INTERVAL)
         
     def getSws(self):
-        #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
-        #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
         if(CONN_WITH_AGENT):
             client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
             
@@ -64,8 +62,6 @@ class islandResourceManager(object):
         return sws  
 
     def getLinks(self):
-        #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
-        #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
         if(CONN_WITH_AGENT):
             client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
             
@@ -75,13 +71,11 @@ class islandResourceManager(object):
                 raise islandex.IslandRMRPCError(err)
         else:
             links = []
-            #links.append("00:00:00:00:00:00:00")
             links.append({"dpidSrc" : "00:00:00:00:00:00:00", "portSrc" : "5", "dpidDst" : "00:00:00:00:00:00:01", "portDst": "1"})
             links.append({"dpidSrc" : "00:00:00:00:00:00:00", "portSrc" : "6", "dpidDst" : "00:00:00:00:00:00:01", "portDst": "7"})
         return links
 
     def getAvailability(self):
-        #it returns only the timeslot and the slice_urn. It is possible to return also other parameters
         scheduleTimeSlot = self.aggregate_schedule.find()
         reservedTimeSlot = []
         
@@ -106,6 +100,7 @@ class islandResourceManager(object):
         end_time = datetime.strptime(end_time, '%d/%m/%Y %H:%M:%S')
         #new allocate: insert in the database
         if(not search):
+            logger.info("Reserve slice %s: time-slot %s  -  %s  VLANs[OFELIA->ALIEN] %s  controller %s", slice_urn, start_time, end_time, str(VLANs) , controller )
             try:
                 reserve = self.aggregate_schedule.reserve(resource_id="Alien", slice_urn=slice_urn, user_id=str(owner_uuid),
                                                       start_time=start_time, end_time=end_time, allocate=True, started=False,
@@ -114,7 +109,7 @@ class islandResourceManager(object):
                     raise islandex.IslandRMAlreadyReserved(start_time = start_time, end_time = end_time)
             reserve.start_time = reserve.start_time.strftime('%d/%m/%Y %H:%M:%S')
             reserve.end_time = reserve.end_time.strftime('%d/%m/%Y %H:%M:%S')
-            
+            logger.info("Reserve slice %s", slice_urn)
             return reserve
         #if there are more approved entries, raise exception. (Should be impossible)
         elif(len(search) > 1):
@@ -127,6 +122,7 @@ class islandResourceManager(object):
         #this is an update of an approved entry
         else:
             # Update of a approved entry
+                logger.info("Update slice %s: time-slot %s  -  %s  VLANs[OFELIA->ALIEN] %s  controller %s", slice_urn, start_time, end_time, str(VLANs) , controller )
                 # Checks if timeslot is equal; If they are not equal, it controls that is available.
                 if((not search[0].start_time == start_time) or (not search[0].end_time == end_time)):
                     list = self.aggregate_schedule.find(start_time=start_time, end_time=end_time)
@@ -156,7 +152,6 @@ class islandResourceManager(object):
                     # If the experiment is started, I need to propagate the update through the TBAM Agent if there is an
                     # update of VLANs or Contoller or client_pub_cert
                     
-                    #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
                     #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
                     if(CONN_WITH_AGENT):
                         client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
@@ -200,13 +195,14 @@ class islandResourceManager(object):
                 return update        
         
     
-    def approve_aggregate(self, slice_urn): 
+    def approve_aggregate(self, slice_urn):
+        logger.info("Approve slice %s: ", slice_urn) 
         search = self.aggregate_schedule.find(slice_urn=slice_urn)
         if(len(search) > 1):
             raise islandex.IslandRMMoreSliceWithSameID(slice_urn)
         if(not search):
             raise islandex.IslandRMNotAllocated(slice_urn)
-        
+
         # Previous allocation found                    
         # It checks that there is not difference between allocate and provision: the 
         # time slot and the owner _uuid must be the same. 
@@ -222,7 +218,7 @@ class islandResourceManager(object):
         return approve
     
     def delete_aggregate(self, slice_urn):
-
+        logger.info("Delete slice %s: ", slice_urn)
         search = self.aggregate_schedule.find(slice_urn=slice_urn)
         if(len(search) > 1):
             raise islandex.IslandRMMoreSliceWithSameID(slice_urn)
@@ -232,8 +228,6 @@ class islandResourceManager(object):
         if(CONN_WITH_AGENT):
             client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
         for entry in search:
-            #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
-            #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
             if(entry.started):
                 if(CONN_WITH_AGENT):
                     self.remove_settings(client, entry)
@@ -259,8 +253,6 @@ class islandResourceManager(object):
 
     @worker.outsideprocess
     def check_provision(self, params):
-        #TODO: The client provides a Secure RPC connection with the TBAM Agent. 
-        #We can keep this call (but the certs must be generated) or we can integrate the TBAM Agent in the AMsoil
         if(CONN_WITH_AGENT):
             client = make_client("https://%s:%d" %(OFGW_ADDRESS, OFGW_PORT), CLIENT_KEY_PATH, CLIENT_CERT_PATH);
         
@@ -268,7 +260,7 @@ class islandResourceManager(object):
             
         if(list):
             if(list[0].end_time < datetime.utcnow()):
-                print("stopping %s", list[0].slice_urn)
+                logger.info("Removing provisioned slice %s: ", list[0].slice_urn)
                 
                 if(CONN_WITH_AGENT):
                     self.remove_settings(client, list[0])
@@ -277,7 +269,7 @@ class islandResourceManager(object):
         
         list = self.aggregate_schedule.find(start_time=datetime.utcnow(), allocate=False, started=False)
         if(list):
-            print("starting %s", list[0].slice_urn)
+            logger.info("Provisionig slice %s: ", list[0].slice_urn)
                             
             if(CONN_WITH_AGENT):
 
