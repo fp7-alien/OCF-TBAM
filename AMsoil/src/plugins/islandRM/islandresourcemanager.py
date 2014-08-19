@@ -21,8 +21,8 @@ scheduleex = pm.getService('scheduleexceptions')
 
 config.install("OFGW_ADDRESS", "localhost", "OFGW IP Address")
 config.install("OFGW_PORT", 8234, "OFGW port")
-config.install("CLIENT_KEY_PATH", "../certs/alice-key.pem", "Client key path to communicate with OFGW")
-config.install("CLIENT_CERT_PATH", "../certs/alice-cert.pem", "Client certificate path to communicate with OFGW")
+config.install("CLIENT_KEY_PATH", "./certs/alice-key.pem", "Client key path to communicate with OFGW")
+config.install("CLIENT_CERT_PATH", "./certs/alice-cert.pem", "Client certificate path to communicate with OFGW")
 #If set to False: avoid the connection to the TBAM Agent. 
 config.install("CONN_WITH_AGENT", False, "Disable (False) / enable (True)  the connection with the OFGW")
 CONN_WITH_AGENT = config.get("CONN_WITH_AGENT")
