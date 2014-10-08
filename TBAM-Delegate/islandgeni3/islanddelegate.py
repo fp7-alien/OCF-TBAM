@@ -112,7 +112,7 @@ class ISLANDdelegate(GENIv3DelegateBase):
         
         if not VLANs:
             VLANs = None
-        if not requested_res.get("controller"):
+        if (not requested_res.get("controller") or "Not" in  requested_res.get("controller")) :
             requested_res["controller"] = None
         
         if not requested_res.get("slice_urn"): 
