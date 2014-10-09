@@ -206,7 +206,7 @@ class islandResourceManager(object):
         # Previous allocation found                    
         # It checks that there is not difference between allocate and provision: the 
         # time slot and the owner _uuid must be the same. 
-        approve = self.aggregate_schedule.update(search[0].reservation_id, allocate=False, started=False)
+        approve = self.aggregate_schedule.update(search[0].reservation_id, allocate=False)
         
         list = self.aggregate_schedule.find(allocate=False)
         print("approved:")
